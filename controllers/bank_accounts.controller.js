@@ -17,14 +17,8 @@ const patchUpdate = async (data) => {
     return result;
 };
 
-const deleteDelete = async (data) => {
-    const result = await modelBankAccounts.destroy({ where: {b_account_id:data.b_account_id} });
-    return result;
-};
-
 module.exports = {
     getList,
     postCreate,
     patchUpdate,
-    deleteDelete,
 }; 

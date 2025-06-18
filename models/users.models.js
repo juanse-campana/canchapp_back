@@ -35,6 +35,11 @@ const Users = sequelize.define(
             type: DataTypes.STRING,
             allowNull: true,
         },
+        user_delete: {
+            type: DataTypes.BOOLEAN,
+            allowNull: false,
+            defaultValue: false,
+        },
     },
     {
         timestamps: false,

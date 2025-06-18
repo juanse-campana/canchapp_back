@@ -33,12 +33,4 @@ router.patch("/update", function (request, response) {
   });
 });
 
-router.delete("/delete", function (request, response) {
-  const result = companiesController.deleteDelete(request.body);
-  response.status(200).json({
-    status: true,
-    info: result,
-  });
-});
-
 module.exports = router;

@@ -58,6 +58,11 @@ const Companies = sequelize.define(
             type: DataTypes.STRING,
             allowNull: true,
         },
+        companie_delete: {
+            type: DataTypes.BOOLEAN,
+            allowNull: false,
+            defaultValue: false,
+        },
     },
     {
         timestamps: false,

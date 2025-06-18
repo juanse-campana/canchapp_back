@@ -34,6 +34,11 @@ const Bank_accounts = sequelize.define(
             type: DataTypes.STRING,
             allowNull: false,
         },
+        b_account_delete: {
+            type: DataTypes.BOOLEAN,
+            allowNull: false,
+            defaultValue: false,
+        },
     },
     {
         timestamps: false,

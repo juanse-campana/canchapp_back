@@ -17,8 +17,14 @@ const patchUpdate = async (data) => {
     return result;
 };
 
+const deleteDelete = async (data) => {
+    const result = await modelUsers.destroy({ where: {user_id:data.user_id} });
+    return result;
+};
+
 module.exports = {
     getList,
     postCreate,
     patchUpdate,
+    deleteDelete,
 }; 
