@@ -22,14 +22,18 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
 
-var testRouter = require("./routes/test.routes");
-app.use("/",testRouter);
+var companiesRouter = require("./routes/companies.routes");
+app.use("/companies",companiesRouter);
 
 var usersRouter = require("./routes/users.routes");
 app.use("/users",usersRouter);
 
-var registersRouter = require("./routes/registers.routes");
-app.use("/registers",registersRouter);
+var usersRouter = require("./routes/bank_accounts.routes");
+app.use("/bank_accounts",usersRouter);
+
+var fieldsRouter = require("./routes/fields.routes");
+app.use("/fields",fieldsRouter);
+
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
