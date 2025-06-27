@@ -14,15 +14,22 @@ router.get("/list", async function (request, response) {
 });
 
 
-router.post("/create", function (request, response) {
-  console.log(request.body);
-  const result = usersController.postCreate(request.body);
-  response.status(200).json({
-    status: true,
-    info: result,
-  });
-});
+router.post("/create", async function (req, res) {
+  console.log(req.body);
 
+  try {
+    await usersController.postCreate(req, res); 
+  } catch (error) {
+  
+    console.error('Error no capturado en la ruta /users/create:', error);
+    if (!res.headersSent) { 
+      res.status(500).json({
+        status: false,
+        message: 'Error interno del servidor.'
+      });
+    }
+  }
+});
 
 
 router.patch("/update", function (request, response) {

@@ -22,7 +22,7 @@ const Users = sequelize.define(
             type: DataTypes.STRING,
             allowNull: false,
         },
-        user_password_hash: {
+        user_hashed_password: {
             type: DataTypes.STRING,
             allowNull: false,
         },
