@@ -1,6 +1,6 @@
 const { Sequelize } = require("sequelize");
 
-const sequelize = new Sequelize("CanchApp", "root", "root", {
+const sequelize = new Sequelize("CanchApp", "root", "1234", {
     host: "localhost",
     dialect: "mysql",
     logging: false,

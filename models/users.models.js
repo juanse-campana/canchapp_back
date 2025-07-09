@@ -17,7 +17,7 @@ const Users = sequelize.define(
       type: DataTypes.STRING,
       allowNull: false,
     },
-     user_phone: {                      // <-- nuevo campo
+     user_phone: {                   
       type: DataTypes.STRING,
       allowNull: false,
     },
@@ -26,7 +26,7 @@ const Users = sequelize.define(
       allowNull: false,
       unique: true,
     },
-    user_password_hash: {
+    user_hashed_password: {
       type: DataTypes.STRING,
       allowNull: false,
     },
