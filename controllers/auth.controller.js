@@ -2,11 +2,15 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const { Users } = require("../models");
 
-const JWT_SECRET = process.env.JWT_SECRET || "claveSecretaSuperSegura"; // Usa .env en producción
+const JWT_SECRET = "claveSecretaSuperSegura"; // Usa .env en producción
 
 const loginUser = async (req, res) => {
+
+  console.log(req.body)
+  
   try {
-    const { user_email, user_password } = req.body;
+    const user_email = req.body.user_email;
+    const user_password = req.body.user_hashed_password
 
     if (!user_email || !user_password) {
       return res.status(400).json({ message: "Email y contraseña obligatorios" });
@@ -29,7 +33,7 @@ const loginUser = async (req, res) => {
       {
         user_id: user.user_id,
         user_email: user.user_email,
-        user_role: user.user_role,
+        user_role: user.user_role
       },
       JWT_SECRET,
       { expiresIn: "2h" }

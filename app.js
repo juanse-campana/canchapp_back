@@ -21,7 +21,7 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
-var authRoutes = require("./routes/authRoutes");
+var authRoutes = require("./routes/auth.routes");
 app.use("/api",authRoutes);
 
 var companiesRouter = require("./routes/companies.routes");
@@ -30,7 +30,7 @@ app.use("/companies",companiesRouter);
 var usersRouter = require("./routes/users.routes");
 app.use("/users",usersRouter);
 
-var citiesRouter = require("./routes/citiesRoutes");
+var citiesRouter = require("./routes/cities.routes");
 app.use("/cities",citiesRouter);
 
 var bankAccountsRouter = require("./routes/bank_accounts.routes");
