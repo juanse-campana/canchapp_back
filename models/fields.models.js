@@ -1,8 +1,8 @@
 const { DataTypes} = require("sequelize");
 const sequelize = require("../database/connect");
 
-const Fields = sequelize.define(
-    "Fields",
+const Fieldss = sequelize.define(
+    "Fieldss",
     {
         field_id: {
             type: DataTypes.INTEGER,
@@ -10,7 +10,7 @@ const Fields = sequelize.define(
             autoIncrement: true,
             unique: true,
         },
-        companie_id: {
+        company_id: {
             type: DataTypes.INTEGER,
             allowNull: false,
         },
@@ -55,7 +55,7 @@ const Fields = sequelize.define(
     },
     {
         timestamps: false,
-        tableName: "Fields"
+        tableName: "Fieldss"
     }
 );
-module.exports = Fields;
+module.exports = Fieldss;

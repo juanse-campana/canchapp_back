@@ -2,35 +2,65 @@ var express = require("express");
 var router = express.Router();
 
 const bankAccountsController = require("../controllers/bank_accounts.controller");
+const verifyToken = require("../middlewares/verifyToken");
+const isOwner = require("../middlewares/isOwner");
 
-/* POST METHOD USERS USER. */
 router.get("/list", async function (request, response) {
-  const result = await bankAccountsController.getList();
-  response.status(200).json({
+  try {
+    const result = await bankAccountsController.getList();
+    response.status(200).json({
     data: result,
     status: true,
-    message: "TODO ESTA OK ",
-  });
+    message: "Cuentas bancarias actualizadas exitosamente",
+    });
+  } catch (error) {
+    console.error("Error al listar las cuentas bancarias: ", error)
+    response.status(500).json({
+      status: false,
+      message: "Error al listar las cuentas bancarias"
+    })
+  }
 });
 
 
-router.post("/create", function (request, response) {
+router.post("/create", verifyToken, isOwner, async function (request, response) {
   console.log(request.body);
-  const result = bankAccountsController.postCreate(request.body);
-  response.status(200).json({
-    status: true,
-    info: result,
-  });
+  try {
+    const result = await bankAccountsController.postCreate(request.body);
+    response.status(200).json({
+      status: true,
+      message: "Cuenta bancaria registrada exitosamente",
+      info: result,
+    });
+  } catch (error) {
+    console.error("Error al crear la cuenta bancaria:", error);
+    response.status(500).json({
+      status: false,
+      message: "Ocurrió un error al crear la cuenta bancaria.",
+      error: error.message, // Puedes enviar un mensaje de error más específico
+    });
+  }
 });
 
 
 
-router.patch("/update", function (request, response) {
-  const result = bankAccountsController.patchUpdate(request.body);
+router.patch("/update", verifyToken, isOwner, async function (request, response) {
+  try {
+    const result = await bankAccountsController.patchUpdate(request.body);
   response.status(200).json({
     status: true,
+    message: "Cuenta bancaria actualizada exitosamente",
     info: result,
   });
+  } catch (error) {
+    console.error("Error al actualizar la cuenta bancaria:", error);
+    response.status(500).json({
+      status: false,
+      message: "Ocurrió un error al actualizar la cuenta bancaria.",
+      error: error.message, // Puedes enviar un mensaje de error más específico
+    });
+  }
+  
 });
 
 module.exports = router;

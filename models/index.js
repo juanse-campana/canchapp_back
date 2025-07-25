@@ -1,6 +1,6 @@
 const Users = require("./users.models");
 const Companies = require("./companies.models");
-const Cities = require("./cities");
+const Cities = require("./cities.models");
 
 // Definir relaciones
 

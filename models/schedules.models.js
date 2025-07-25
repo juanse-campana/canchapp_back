@@ -1,48 +1,51 @@
 const { DataTypes} = require("sequelize");
 const sequelize = require("../database/connect");
 
-const Bank_accounts = sequelize.define(
-    "Bank_accounts",
+const Schedules = sequelize.define(
+    "Schedules",
     {
-        b_account_id: {
+        schedule_id: {
             type: DataTypes.INTEGER,
             primaryKey: true,
             autoIncrement: true,
             unique: true,
         },
-        company_id: {
+        field_id: {
             type: DataTypes.INTEGER,
             allowNull: false,
         },
-        b_account_bank: {
-            type: DataTypes.ENUM('Banco de Loja','CoopMego','Banco Pichincha','Banco Guayaquil','Cacpe Loja'),
-            allowNull: false,
-        },
-        b_account_number: {
-            type: DataTypes.INTEGER,
-            allowNull: false,
-        },
-        b_account_ci: {
-            type: DataTypes.INTEGER,
-            allowNull: false,
-        },
-        b_account_type: {
-            type: DataTypes.ENUM('Ahorros','Corriente'),
-            allowNull: false,
-        },
-        b_account_owner: {
+        schedule_mon: {
             type: DataTypes.STRING,
             allowNull: false,
         },
-        b_account_delete: {
-            type: DataTypes.BOOLEAN,
+        schedule_tue: {
+            type: DataTypes.STRING,
             allowNull: false,
-            defaultValue: false,
+        },
+        schedule_wed: {
+            type: DataTypes.STRING,
+            allowNull: false,
+        },
+        schedule_thu: {
+            type: DataTypes.STRING,
+            allowNull: false,
+        },
+        schedule_fri: {
+            type: DataTypes.STRING,
+            allowNull: false,
+        },
+        schedule_sat: {
+            type: DataTypes.STRING,
+            allowNull: false,
+        },
+        schedule_sun: {
+            type: DataTypes.STRING,
+            allowNull: false,
         },
     },
     {
         timestamps: false,
-        tableName: "Bank_accounts"
+        tableName: "Schedules"
     }
 );
-module.exports = Bank_accounts;
+module.exports = Schedules;

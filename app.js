@@ -39,6 +39,9 @@ app.use("/bank_accounts",bankAccountsRouter);
 var fieldsRouter = require("./routes/fields.routes");
 app.use("/fields",fieldsRouter);
 
+var schedulesRouter = require("./routes/schedules.routes");
+app.use("/schedules",schedulesRouter);
+
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

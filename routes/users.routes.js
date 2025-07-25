@@ -5,12 +5,21 @@ const usersController = require("../controllers/users.controller");
 
 /* POST METHOD USERS USER. */
 router.get("/list", async function (request, response) {
-  const result = await usersController.getList();
-  response.status(200).json({
-    data: result,
-    status: true,
-    message: "TODO ESTA OK ",
-  });
+  try {
+    const result = await usersController.getList();
+    response.status(200).json({
+      data: result,
+      status: true,
+      message: "Usuarios listados exitosamente",
+    });
+  } catch (error) {
+    console.error("Error al listar los usuarios: ", error)
+    response.statur(500).json({
+      status: false,
+      message: "Ocurrio un error al listar los usuarios"
+    })
+  }
+  
 });
 
 
@@ -18,14 +27,18 @@ router.post("/create", async function (req, res) {
   console.log(req.body);
 
   try {
-    await usersController.postCreate(req, res); 
+    const result = await usersController.postCreate(req, res); 
+    response.status(200).json({
+      data: result,
+      status: true,
+      message: "Usuario creado exitosamente",
+    });
   } catch (error) {
-  
     console.error('Error no capturado en la ruta /users/create:', error);
     if (!res.headersSent) { 
       res.status(500).json({
         status: false,
-        message: 'Error interno del servidor.'
+        message: 'Ocurrio un error al crear el usuario'
       });
     }
   }
@@ -33,11 +46,21 @@ router.post("/create", async function (req, res) {
 
 
 router.patch("/update", function (request, response) {
-  const result = usersController.patchUpdate(request.body);
-  response.status(200).json({
-    status: true,
-    info: result,
-  });
+  try {
+    const result = usersController.patchUpdate(request.body);
+    response.status(200).json({
+      status: true,
+      message: "Usuario actualizado exitosamente",
+      info: result,
+    });
+  } catch (error) {
+    console.error("Error al actualizar usuario: ", error)
+    response.status(500).json({
+      status: true,
+      message: "Ocurrio un error al actualizar usuario"
+    })
+  }
+  
 });
 
 module.exports = router;

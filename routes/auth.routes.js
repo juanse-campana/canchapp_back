@@ -14,7 +14,7 @@ router.post("/login", async function (req, res) {
     if (!res.headersSent) {
       res.status(500).json({
         status: false,
-        message: 'Error interno del servidor.'
+        message: 'Error al iniciar sesion'
       });
     }
   }
