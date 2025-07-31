@@ -42,6 +42,9 @@ app.use("/fields",fieldsRouter);
 var schedulesRouter = require("./routes/schedules.routes");
 app.use("/schedules",schedulesRouter);
 
+var calendarsRouter = require("./routes/calendars.routes");
+app.use("/calendars",calendarsRouter);
+
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

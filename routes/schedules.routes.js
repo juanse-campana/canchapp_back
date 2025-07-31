@@ -7,7 +7,6 @@ const isOwner = require("../middlewares/isOwner");
 
 /* GET lista de companies (pública) */
 router.get("/list", async function (request, response) {
-  console.log("hola")
   try {
     const result = await schedulesController.getList();
     response.status(200).json({
@@ -21,8 +20,24 @@ router.get("/list", async function (request, response) {
       status: false,
       message: "Ocurrio un error al listar los horarios"
     })
-  }
-  
+  } 
+});
+
+router.get("/findScheduleByFieldId", async function (request, response) {
+  try {
+    const result = await schedulesController.getScheduleByField(request.body);
+    response.status(200).json({
+      data: result,
+      status: true,
+      message: "Horarios listados exitosamente",
+    });
+  } catch (error) {
+    console.error("Error al listar los horarios: ", error)
+    response.status(500).json({
+      status: false,
+      message: "Ocurrio un error al listar los horarios"
+    })
+  } 
 });
 
 /* POST crear company - protegido, solo dueños pueden crear */

@@ -5,6 +5,16 @@ const getList = async () => {
     return result;
   };
 
+const getScheduleByField = async (data) => {
+    const result = await modelSchedules.findOne({
+        where: {
+            field_id: data.field_id
+        }
+    });
+
+    return result;
+};
+
   const postCreate = async (data) => {
     const result = await modelSchedules.create(data);
     return result;
@@ -19,6 +29,7 @@ const patchUpdate = async (data) => {
 
 module.exports = {
     getList,
+    getScheduleByField,
     postCreate,
     patchUpdate,
 }; 
