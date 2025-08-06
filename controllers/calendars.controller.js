@@ -19,9 +19,9 @@ const getDateList = async (data) => {
   
 
 const postCreateDate = async (data) => {
-  console.log(data)
     // 1. Obtener el horario para el campo
     const fieldSchedule = await schedulesController.getScheduleByField(data);
+    console.log(fieldSchedule)
     const createdCalendars = [];
 
     // Verificar si se obtuvo un horario y si tiene las propiedades esperadas
@@ -97,8 +97,37 @@ const patchUpdate = async (data) => {
     return result;
 };
 
+const closeCalendar = async (data) => {
+    const result = await modelCalendars.update(data, {
+        where: {
+            calendar_id: data.calendar_id
+        }
+    })
+    return result
+}
+
+const findPayedCalendarsByField = async (id) => {
+    console.log(id)
+    try {
+        const result = await modelCalendars.findAll({
+        where: {
+            field_id: id,
+            calendar_state: 'Reservada',
+            calendar_payment: 'Pendiente'
+        }
+        })
+        console.log(result)
+        return result
+    } catch (error) {
+        console.log(error)
+    }
+    
+}
+
 module.exports = {
     getDateList,
     postCreateDate,
     patchUpdate,
+    findPayedCalendarsByField,
+    closeCalendar
 }; 

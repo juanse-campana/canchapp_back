@@ -38,6 +38,9 @@ const Calendars = sequelize.define(
             type: DataTypes.ENUM('Disponible', 'Reservada', 'No Disponible', 'Por Confirmar'),
             defaultValue: 'Disponible'
         },
+        calendar_payment: {
+            type: DataTypes.ENUM('Pendiente','Cerrado')
+        },
         calendar_transaction: {
             type: DataTypes.STRING,
             unique: true,

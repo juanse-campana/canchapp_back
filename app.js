@@ -45,6 +45,9 @@ app.use("/schedules",schedulesRouter);
 var calendarsRouter = require("./routes/calendars.routes");
 app.use("/calendars",calendarsRouter);
 
+var cashClosingsRouter = require("./routes/cash_closings.routes");
+app.use("/cash_closings",cashClosingsRouter);
+
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
