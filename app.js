@@ -21,32 +21,21 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
-var authRoutes = require("./routes/auth.routes");
-app.use("/api",authRoutes);
+const routes = [
+  { path: "/api", router: require("./routes/auth.routes") },
+  { path: "/companies", router: require("./routes/companies.routes") },
+  { path: "/users", router: require("./routes/users.routes") },
+  { path: "/cities", router: require("./routes/cities.routes") },
+  { path: "/bank_accounts", router: require("./routes/bank_accounts.routes") },
+  { path: "/fields", router: require("./routes/fields.routes") },
+  { path: "/schedules", router: require("./routes/schedules.routes") },
+  { path: "/calendars", router: require("./routes/calendars.routes") },
+  { path: "/cash_closings", router: require("./routes/cash_closings.routes") },
+];
 
-var companiesRouter = require("./routes/companies.routes");
-app.use("/companies",companiesRouter);
-
-var usersRouter = require("./routes/users.routes");
-app.use("/users",usersRouter);
-
-var citiesRouter = require("./routes/cities.routes");
-app.use("/cities",citiesRouter);
-
-var bankAccountsRouter = require("./routes/bank_accounts.routes");
-app.use("/bank_accounts",bankAccountsRouter);
-
-var fieldsRouter = require("./routes/fields.routes");
-app.use("/fields",fieldsRouter);
-
-var schedulesRouter = require("./routes/schedules.routes");
-app.use("/schedules",schedulesRouter);
-
-var calendarsRouter = require("./routes/calendars.routes");
-app.use("/calendars",calendarsRouter);
-
-var cashClosingsRouter = require("./routes/cash_closings.routes");
-app.use("/cash_closings",cashClosingsRouter);
+routes.forEach(route => {
+  app.use(route.path, route.router);
+});
 
 
 // catch 404 and forward to error handler

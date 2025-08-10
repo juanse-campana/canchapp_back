@@ -1,94 +1,9 @@
-const { where } = require("sequelize");
-const modelUsers = require("../models/users.models");
+const { Users } = require("../models");
 const bcrypt = require('bcryptjs');
 
-const getList = async () => {
-    const result = await modelUsers.findAll();
-    return result;
-  };
-  
-const postCreate = async (req, res) => {
-  
-  console.log(req.body)
+// --- Funciones auxiliares (no exportadas) ---
 
-  const user_name = req.body.user_name;
-  const user_hashed_password = req.body.user_hashed_password;
-
-  if (!user_name || !user_hashed_password) {
-      return res.status(400).json({ message: 'Nombre de usuario y contraseña son requeridos.' });
-  }
-
-  const passwordError = validatePassword(user_hashed_password);
-  if (passwordError) {
-      return res.status(400).json({ message: passwordError });
-  }
-
-  try {
-      // Verificar si el usuario ya existe
-      const existingUser = await findUserByUsername(user_name);
-      if (existingUser) {
-          return res.status(409).json({ message: 'El nombre de usuario ya está en uso.' });
-      }
-
-      const saltRounds = 10;
-      const hashedPassword = await bcrypt.hash(user_hashed_password, saltRounds);
-
-      
-      const userDataToSave = {
-          user_name: user_name,
-          user_last_name: req.body.user_last_name,
-          user_email: req.body.user_email,
-          user_hashed_password: hashedPassword,
-          user_profile_photo: req.body.user_profile_photo,
-          user_phone: req.body.user_phone,
-          user_role: req.body.user_role
-      };
-
-      // 3. Guardar el Usuario en la Base de Datos
-      // Esta variable 'dbResult' contendrá el objeto del usuario creado de tu DB, NO el objeto de respuesta HTTP
-      const dbResult = await modelUsers.create(userDataToSave);
-
-      // Envía una respuesta de éxito al cliente usando el objeto 'res' de Express
-      return res.status(201).json({
-          message: 'Usuario registrado exitosamente.',
-          user: {
-              id: dbResult.id, 
-              user_name: dbResult.user_name
-          }
-      });
-
-  } catch (error) {
-      console.error('Error al registrar el usuario:', error);
-      // En caso de error, envía una respuesta de error al cliente usando el objeto 'res' de Express
-      return res.status(500).json({ message: 'Error interno del servidor al registrar el usuario.' });
-  }
-};
-  
-
-const patchUpdate = async (data) => {
-    const result = await modelUsers.update(data, { where: {user_id: data.user_id} });
-    return result;
-};
-
-const findUserByUsername = async (username) => {
-    try {
-        const result = await modelUsers.findOne({
-            where: {
-                user_name: username
-            }
-        });
-        return result;
-    } catch (error) {
-        console.error('Error al buscar usuario por nombre:', error);
-        throw error;
-    }
-};
-
-const findUserById = async (data) => {
-    const result = await modelUsers.findByPk(data, { where: {user_id: data.body.user_id} });
-    return result;
-};
-
+// Valida la fortaleza de la contraseña
 const validatePassword = (password) => {
     const minLength = 8;
     const hasUpperCase = /[A-Z]/.test(password);
@@ -96,29 +11,145 @@ const validatePassword = (password) => {
     const hasNumbers = /[0-9]/.test(password);
     const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
 
-    if (password.length < minLength) {
-        return 'La contraseña debe tener al menos 8 caracteres.';
+    if (password.length < minLength) return 'La contraseña debe tener al menos 8 caracteres.';
+    if (!hasUpperCase) return 'La contraseña debe contener al menos una letra mayúscula.';
+    if (!hasLowerCase) return 'La contraseña debe contener al menos una letra minúscula.';
+    if (!hasNumbers) return 'La contraseña debe contener al menos un número.';
+    if (!hasSpecialChar) return 'La contraseña debe contener al menos un carácter especial.';
+    return null; // Contraseña válida
+};
+
+// Busca un usuario por su nombre de usuario
+const findUserByUsername = (username) => {
+    return Users.findOne({ where: { user_name: username } });
+};
+
+// --- Controladores (exportados) ---
+
+// Obtener todos los usuarios
+const getAllUsers = async (req, res) => {
+    try {
+        const users = await Users.findAll({
+            attributes: { exclude: ['user_hashed_password'] } // No exponer la contraseña
+        });
+        res.status(200).json(users);
+    } catch (error) {
+        console.error('Error al obtener usuarios:', error);
+        res.status(500).json({ message: 'Error al obtener usuarios.' });
     }
-    if (!hasUpperCase) {
-        return 'La contraseña debe contener al menos una letra mayúscula.';
+};
+
+// Crear un nuevo usuario
+const createUser = async (req, res) => {
+    const { user_name, user_last_name, user_email, user_hashed_password, user_phone, user_role } = req.body;
+
+    if (!user_name || !user_hashed_password || !user_email) {
+        return res.status(400).json({ message: 'El nombre de usuario, la contraseña y el email son requeridos.' });
     }
-    if (!hasLowerCase) {
-        return 'La contraseña debe contener al menos una letra minúscula.';
+
+    const passwordError = validatePassword(user_hashed_password);
+    if (passwordError) {
+        return res.status(400).json({ message: passwordError });
     }
-    if (!hasNumbers) {
-        return 'La contraseña debe contener al menos un número.';
+
+    try {
+        const existingUser = await findUserByUsername(user_name);
+        if (existingUser) {
+            return res.status(409).json({ message: 'El nombre de usuario ya existe.' });
+        }
+
+        const existingEmail = await Users.findOne({ where: { user_email } });
+        if (existingEmail) {
+            return res.status(409).json({ message: 'El email ya está en uso.' });
+        }
+
+        const saltRounds = 10;
+        const hashedPassword = await bcrypt.hash(user_hashed_password, saltRounds);
+
+        const newUser = await Users.create({
+            user_name,
+            user_last_name,
+            user_email,
+            user_hashed_password: hashedPassword,
+            user_phone,
+            user_role
+        });
+
+        const userResponse = newUser.toJSON();
+        delete userResponse.user_hashed_password;
+
+        res.status(201).json({
+            message: 'Usuario creado exitosamente.',
+            user: userResponse
+        });
+
+    } catch (error) {
+        console.error('Error al crear usuario:', error);
+        res.status(500).json({ message: 'Error al crear el usuario.' });
     }
-    if (!hasSpecialChar) {
-        return 'La contraseña debe contener al menos un carácter especial.';
+};
+
+// Obtener un usuario por su ID
+const getUserById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const user = await Users.findByPk(id, {
+            attributes: { exclude: ['user_hashed_password'] }
+        });
+
+        if (!user) {
+            return res.status(404).json({ message: 'Usuario no encontrado.' });
+        }
+        res.status(200).json(user);
+    } catch (error) {
+        console.error('Error al obtener usuario:', error);
+        res.status(500).json({ message: 'Error al obtener el usuario.' });
     }
-    return null; // La contraseña es válida
+};
+
+// Actualizar un usuario
+const updateUser = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const [updated] = await Users.update(req.body, {
+            where: { user_id: id }
+        });
+
+        if (updated) {
+            const updatedUser = await Users.findByPk(id, {
+                attributes: { exclude: ['user_hashed_password'] }
+            });
+            return res.status(200).json({ message: 'Usuario actualizado.', user: updatedUser });
+        }
+        return res.status(404).json({ message: 'Usuario no encontrado.' });
+    } catch (error) {
+        console.error('Error al actualizar usuario:', error);
+        res.status(500).json({ message: 'Error al actualizar el usuario.' });
+    }
+};
+
+// Eliminar un usuario
+const deleteUser = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const deleted = await Users.destroy({
+            where: { user_id: id }
+        });
+
+        if (deleted) {
+            return res.status(204).send(); // No Content
+        }
+        return res.status(404).json({ message: 'Usuario no encontrado.' });
+    } catch (error) {
+        console.error('Error al eliminar usuario:', error);
+        res.status(500).json({ message: 'Error al eliminar el usuario.' });
+    }
 };
 
 module.exports = {
-    getList,
-    postCreate,
-    patchUpdate,
-    validatePassword,
-    findUserByUsername,
-    findUserById
+    getAllUsers,
+    createUser,
+    getUserById,
+    updateUser,
+    deleteUser
 };

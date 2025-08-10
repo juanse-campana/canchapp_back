@@ -1,66 +1,26 @@
-var express = require("express");
-var router = express.Router();
+const express = require('express');
+const router = express.Router();
+const {
+    getAllUsers,
+    createUser,
+    getUserById,
+    updateUser,
+    deleteUser
+} = require('../controllers/users.controller');
 
-const usersController = require("../controllers/users.controller");
+// GET /users - Obtener todos los usuarios
+router.get('/', getAllUsers);
 
-/* POST METHOD USERS USER. */
-router.get("/list", async function (request, response) {
-  try {
-    const result = await usersController.getList();
-    response.status(200).json({
-      data: result,
-      status: true,
-      message: "Usuarios listados exitosamente",
-    });
-  } catch (error) {
-    console.error("Error al listar los usuarios: ", error)
-    response.statur(500).json({
-      status: false,
-      message: "Ocurrio un error al listar los usuarios"
-    })
-  }
-  
-});
+// POST /users - Crear un nuevo usuario
+router.post('/', createUser);
 
+// GET /users/:id - Obtener un usuario por su ID
+router.get('/:id', getUserById);
 
-router.post("/create", async function (req, res) {
-  console.log(req.body);
+// PATCH /users/:id - Actualizar un usuario por su ID
+router.patch('/:id', updateUser);
 
-  try {
-    const result = await usersController.postCreate(req, res); 
-    response.status(200).json({
-      data: result,
-      status: true,
-      message: "Usuario creado exitosamente",
-    });
-  } catch (error) {
-    console.error('Error no capturado en la ruta /users/create:', error);
-    if (!res.headersSent) { 
-      res.status(500).json({
-        status: false,
-        message: 'Ocurrio un error al crear el usuario'
-      });
-    }
-  }
-});
-
-
-router.patch("/update", function (request, response) {
-  try {
-    const result = usersController.patchUpdate(request.body);
-    response.status(200).json({
-      status: true,
-      message: "Usuario actualizado exitosamente",
-      info: result,
-    });
-  } catch (error) {
-    console.error("Error al actualizar usuario: ", error)
-    response.status(500).json({
-      status: true,
-      message: "Ocurrio un error al actualizar usuario"
-    })
-  }
-  
-});
+// DELETE /users/:id - Eliminar un usuario por su ID
+router.delete('/:id', deleteUser);
 
 module.exports = router;
