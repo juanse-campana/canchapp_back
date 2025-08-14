@@ -10,7 +10,7 @@ const Fields = sequelize.define(
             autoIncrement: true,
             unique: true,
         },
-        companie_id: {
+        company_id: {
             type: DataTypes.INTEGER,
             allowNull: false,
         },
@@ -55,7 +55,7 @@ const Fields = sequelize.define(
     },
     {
         timestamps: false,
-        tableName: "Fields"
+        tableName: "fields"
     }
 );
 module.exports = Fields;
