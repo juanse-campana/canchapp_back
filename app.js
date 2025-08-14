@@ -1,3 +1,5 @@
+require('dotenv').config(); 
+
 var createError = require('http-errors');
 var express = require('express');
 var path = require('path');
@@ -47,6 +49,9 @@ app.use("/calendars",calendarsRouter);
 
 var cashClosingsRouter = require("./routes/cash_closings.routes");
 app.use("/cash_closings",cashClosingsRouter);
+
+var uploadRouter = require("./routes/upload.routes");
+app.use("/image",uploadRouter);
 
 
 // catch 404 and forward to error handler
