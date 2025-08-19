@@ -1,11 +1,12 @@
-// routes/calendar.js - VERSIÓN SEQUELIZE
+// routes/calendar.js - VERSIÓN COMPLETA CORREGIDA
 const express = require('express');
 const router = express.Router();
 const sequelize = require('../database/connect'); // Tu conexión Sequelize
 
+// 🔥 IMPORTACIONES CORREGIDAS
+const Calendars = require('../models/calendars.models'); // Usar el nombre correcto del modelo
+const { Op } = require('sequelize');
 
-
-// 🆕 SOLO AGREGAR ESTAS DOS LÍNEAS DESPUÉS DE LOS REQUIRES EXISTENTES
 const { uploadConfigs, handleUploadError } = require('../config/uploadConfig');
 const { verifyToken, requireOwnership } = require('../middlewares/auth');
 
@@ -52,7 +53,7 @@ router.get('/company/:companyId/today', async (req, res) => {
         });
         
         res.json({
-            success: true,
+            status: true, // 🔥 Cambiado para consistencia
             data: processedResults,
             meta: {
                 total: processedResults.length,
@@ -64,7 +65,7 @@ router.get('/company/:companyId/today', async (req, res) => {
     } catch (error) {
         console.error('Error obteniendo reservas de hoy:', error);
         res.status(500).json({
-            success: false,
+            status: false,
             message: 'Error interno del servidor',
             error: error.message
         });
@@ -95,14 +96,14 @@ router.get('/company/:companyId/upcoming', async (req, res) => {
         });
         
         res.json({
-            success: true,
+            status: true, // 🔥 Cambiado para consistencia
             data: results,
             message: 'Próximas reservas obtenidas correctamente'
         });
     } catch (error) {
         console.error('Error obteniendo próximas reservas:', error);
         res.status(500).json({
-            success: false,
+            status: false,
             message: 'Error interno del servidor',
             error: error.message
         });
@@ -148,41 +149,31 @@ router.get('/company/:companyId', async (req, res) => {
         });
         
         res.json({
-            success: true,
+            status: true, // 🔥 Cambiado para consistencia
             data: results,
             message: 'Reservas obtenidas correctamente'
         });
     } catch (error) {
         console.error('Error obteniendo reservas:', error);
         res.status(500).json({
-            success: false,
+            status: false,
             message: 'Error interno del servidor',
             error: error.message
         });
     }
 });
 
-
-// POST /calendars/create - Crear nueva reserva CON IMAGEN OBLIGATORIA
+// 🔥 POST /calendars/create - VERSIÓN CORREGIDA COMPLETA
 router.post('/create',
-  uploadConfigs.receipt.single('receipt_image'), 
+  uploadConfigs.receipt.single('receipt_image'),
   handleUploadError,
   async (req, res) => {
+    let transaction;
+    
     try {
         console.log('📥 Datos recibidos en /calendars/create:');
-        console.log('Body completo:', req.body);
-        console.log('Files:', req.file); // 🔥 CAMBIAR req.files a req.file
-        console.log('Imagen recibida:', req.file?.filename);
-
-        // 🔥 VALIDAR QUE SIEMPRE VENGA UNA IMAGEN (NUEVO)
-        if (!req.file) {
-            console.log('❌ Error: No se recibió comprobante de pago');
-            return res.status(400).json({
-                success: false,
-                message: 'El comprobante de pago es obligatorio para realizar una reserva',
-                error: 'RECEIPT_REQUIRED'
-            });
-        }
+        console.log('Body:', req.body);
+        console.log('File:', req.file?.filename || 'Ninguno');
 
         const {
             field_id,
@@ -190,115 +181,96 @@ router.post('/create',
             calendar_date,
             calendar_init_time,
             calendar_end_time,
-            calendar_state = 'Pendiente',
-            cash_closing_id = null,
             calendar_transaccion
         } = req.body;
 
-        console.log('🔍 Parámetros extraídos:');
-        console.log('field_id:', field_id);
-        console.log('user_id:', user_id);
-        console.log('calendar_date:', calendar_date);
-        console.log('calendar_init_time:', calendar_init_time);
-        console.log('calendar_end_time:', calendar_end_time);
-        console.log('calendar_transaccion:', calendar_transaccion);
+        // Validación mejorada
+        if (!field_id || !user_id || !calendar_date || !calendar_init_time || !calendar_end_time) {
+            return res.status(400).json({
+                status: false, // 🔥 Cambiado a 'status' para consistencia
+                message: 'Faltan campos obligatorios: field_id, user_id, calendar_date, calendar_init_time, calendar_end_time'
+            });
+        }
 
-        // 🔥 GENERAR ID ÚNICO DE TRANSACCIÓN
-        const generateTransactionId = () => {
-            const timestamp = Date.now();
-            const random = Math.floor(Math.random() * 10000);
-            return `TXN-${field_id}-${user_id}-${timestamp}-${random}`;
-        };
+        // Iniciar transacción DESPUÉS de validaciones
+        transaction = await sequelize.transaction();
 
-        const transactionId = generateTransactionId();
-        console.log('🆔 Transaction ID generado:', transactionId);
+        // 🔥 Procesar imagen
+        let receiptUrl = null;
+        if (req.file) {
+            receiptUrl = `/uploads/receipts/${req.file.filename}`;
+            console.log('📷 Comprobante guardado:', receiptUrl);
+        }
 
-        // 🔥 PROCESAR LA IMAGEN DEL COMPROBANTE (SIEMPRE EXISTIRÁ)
-        const receiptUrl = `/uploads/receipts/${req.file.filename}`;
-        console.log('✅ Comprobante recibido:', receiptUrl);
-
-        // Verificar si ya existe una reserva en ese horario
-        const checkQuery = `
-            SELECT calendar_id FROM Calendars 
-            WHERE field_id = :field_id
-            AND calendar_date = :calendar_date
-            AND ((calendar_init_time <= :init_time1 AND calendar_end_time > :init_time2) 
-                OR (calendar_init_time < :end_time1 AND calendar_end_time >= :end_time2)
-                OR (calendar_init_time >= :init_time3 AND calendar_init_time < :end_time3))
-            AND calendar_state NOT IN ('Cancelada', 'Disponible', 'Rechazada')
-        `;
-
-        const existing = await sequelize.query(checkQuery, {
-            replacements: {
+        // 🔥 VERIFICACIÓN DE SOLAPAMIENTO USANDO EL MODELO
+        const overlappingReservation = await Calendars.findOne({
+            where: {
                 field_id,
                 calendar_date,
-                init_time1: calendar_init_time,
-                init_time2: calendar_init_time,
-                end_time1: calendar_end_time,
-                end_time2: calendar_end_time,
-                init_time3: calendar_init_time,
-                end_time3: calendar_end_time
+                calendar_state: { 
+                    [Op.notIn]: ['Cancelada', 'Disponible'] 
+                },
+                [Op.or]: [
+                    {
+                        calendar_init_time: { [Op.lt]: calendar_end_time },
+                        calendar_end_time: { [Op.gt]: calendar_init_time }
+                    }
+                ]
             },
-            type: sequelize.QueryTypes.SELECT
+            transaction
         });
 
-        if (existing.length > 0) {
-            return res.status(400).json({
-                success: false,
+        if (overlappingReservation) {
+            await transaction.rollback();
+            return res.status(409).json({
+                status: false,
                 message: 'Ya existe una reserva en ese horario'
             });
         }
 
-        // 🔥 INSERTAR SIEMPRE EN ESTADO PENDIENTE (MODIFICADO)
-        const insertQuery = `
-            INSERT INTO Calendars (
-                field_id, user_id, calendar_date, calendar_init_time, 
-                calendar_end_time, calendar_state, cash_closing_id, 
-                calendar_transaccion, calendar_payment_receipt,
-                calendar_payment_receipt_date, calendar_payment_status,
-                calendar_payment_amount
-            ) VALUES (:field_id, :user_id, :calendar_date, :calendar_init_time, 
-                     :calendar_end_time, 'Pendiente', :cash_closing_id, 
-                     :transactionId, :calendar_payment_receipt,
-                     NOW(), 'pendiente', :calendar_payment_amount)
-        `;
+        // 🔥 INSERCIÓN USANDO EL MODELO SEQUELIZE
+        const newReservation = await Calendars.create({
+            field_id: parseInt(field_id),
+            user_id: parseInt(user_id),
+            calendar_date,
+            calendar_init_time,
+            calendar_end_time,
+            calendar_state: receiptUrl ? 'Pendiente' : 'Confirmada',
+            calendar_transaccion: parseFloat(calendar_transaccion) || null,
+            calendar_payment_receipt: receiptUrl,
+            calendar_payment_status: receiptUrl ? 'pendiente' : null,
+            calendar_payment_amount: parseFloat(calendar_transaccion) || null,
+            calendar_payment_receipt_date: receiptUrl ? new Date() : null
+        }, { transaction });
 
-        const [results, metadata] = await sequelize.query(insertQuery, {
-            replacements: {
-                field_id,
-                user_id,
-                calendar_date,
-                calendar_init_time,
-                calendar_end_time,
-                cash_closing_id,
-                transactionId: transactionId, // 🔥 USAR ID ÚNICO EN LUGAR DE MONTO
-                calendar_payment_receipt: receiptUrl, // 🔥 GUARDAR URL DE LA IMAGEN
-                calendar_payment_amount: calendar_transaccion // 🔥 MONTO DEL PAGO
-            }
-        });
+        // ✅ COMMIT LA TRANSACCIÓN
+        await transaction.commit();
 
-        console.log('✅ Reserva creada con ID:', metadata.insertId);
-        console.log('🆔 Transaction ID:', transactionId);
-        console.log('📄 Comprobante guardado:', receiptUrl);
+        console.log('✅ Reserva creada con ID:', newReservation.calendar_id);
 
         res.status(201).json({
-            success: true,
-            data: { 
-                calendar_id: metadata.insertId,
-                transaction_id: transactionId, // 🔥 DEVOLVER TRANSACTION ID
-                receipt_url: receiptUrl, // 🔥 DEVOLVER URL DE LA IMAGEN
-                state: 'Pendiente',
-                payment_status: 'pendiente',
-                payment_amount: calendar_transaccion
-            },
-            message: 'Reserva creada exitosamente - Pendiente de aprobación por el administrador'
+            status: true, // 🔥 Cambiado a 'status'
+            message: 'Calendario creado exitosamente',
+            info: [{ // 🔥 Cambiado a 'info' para consistencia con tu log
+                calendar_id: newReservation.calendar_id,
+                receipt_url: receiptUrl,
+                state: receiptUrl ? 'Pendiente' : 'Confirmada'
+            }]
         });
+
     } catch (error) {
-        console.error('Error creando reserva:', error);
+        // 🔥 Rollback solo si la transacción existe
+        if (transaction) {
+            await transaction.rollback();
+        }
+        
+        console.error('❌ Error crítico creando reserva:', error);
+        console.error('❌ Stack trace:', error.stack);
+        
         res.status(500).json({
-            success: false,
-            message: 'Error interno del servidor',
-            error: error.message
+            status: false,
+            message: 'Error en el servidor al crear la reserva',
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Error interno'
         });
     }
 });
@@ -312,7 +284,7 @@ router.put('/update-status', async (req, res) => {
         
         if (!validStates.includes(calendar_state)) {
             return res.status(400).json({
-                success: false,
+                status: false,
                 message: 'Estado no válido'
             });
         }
@@ -329,61 +301,19 @@ router.put('/update-status', async (req, res) => {
 
         if (metadata.affectedRows === 0) {
             return res.status(404).json({
-                success: false,
+                status: false,
                 message: 'Reserva no encontrada'
             });
         }
 
         res.json({
-            success: true,
+            status: true,
             message: `Reserva actualizada a ${calendar_state}`
         });
     } catch (error) {
         console.error('Error actualizando estado de reserva:', error);
         res.status(500).json({
-            success: false,
-            message: 'Error interno del servidor',
-            error: error.message
-        });
-    }
-});
-
-// GET /calendars/company/:companyId/clients - Clientes únicos
-router.get('/company/:companyId/clients', async (req, res) => {
-    try {
-        const { companyId } = req.params;
-
-        const query = `
-            SELECT 
-                u.user_id,
-                u.user_name,
-                u.user_email,
-                COUNT(c.calendar_id) as total_bookings,
-                MIN(c.calendar_date) as first_booking_date,
-                MAX(c.calendar_date) as last_booking_date
-            FROM Users u
-            JOIN Calendars c ON u.user_id = c.user_id
-            JOIN Fields f ON c.field_id = f.field_id
-            WHERE f.company_id = :companyId
-            AND c.calendar_state IN ('Reservada', 'Confirmada', 'Completada')
-            GROUP BY u.user_id, u.user_name, u.user_email
-            ORDER BY total_bookings DESC
-        `;
-
-        const results = await sequelize.query(query, {
-            replacements: { companyId },
-            type: sequelize.QueryTypes.SELECT
-        });
-        
-        res.json({
-            success: true,
-            data: results,
-            message: 'Clientes obtenidos correctamente'
-        });
-    } catch (error) {
-        console.error('Error obteniendo clientes:', error);
-        res.status(500).json({
-            success: false,
+            status: false,
             message: 'Error interno del servidor',
             error: error.message
         });
@@ -403,7 +333,7 @@ router.post('/:calendarId/upload-receipt',
       
       if (!req.file) {
         return res.status(400).json({
-          success: false,
+          status: false,
           message: 'No se subió ningún comprobante',
           error: 'NO_RECEIPT_UPLOADED'
         });
@@ -423,7 +353,7 @@ router.post('/:calendarId/upload-receipt',
 
       if (reservation.length === 0) {
         return res.status(404).json({
-          success: false,
+          status: false,
           message: 'Reserva no encontrada'
         });
       }
@@ -431,7 +361,7 @@ router.post('/:calendarId/upload-receipt',
       // 🆕 SOLO ESTA VERIFICACIÓN AGREGADA
       if (req.user.user_role !== 'admin' && reservation[0].user_id !== req.user.user_id) {
         return res.status(403).json({
-          success: false,
+          status: false,
           message: 'No puedes subir comprobantes para reservas de otros usuarios'
         });
       }
@@ -455,7 +385,7 @@ router.post('/:calendarId/upload-receipt',
       console.log(`✅ Comprobante subido para reserva ${calendarId}: ${req.file.filename}`);
 
       res.json({
-        success: true,
+        status: true,
         message: 'Comprobante subido exitosamente. Su reserva está pendiente de aprobación.',
         data: {
           calendar_id: calendarId,
@@ -469,7 +399,7 @@ router.post('/:calendarId/upload-receipt',
     } catch (error) {
       console.error('❌ Error subiendo comprobante:', error);
       res.status(500).json({
-        success: false,
+        status: false,
         message: 'Error interno del servidor',
         error: error.message
       });
@@ -533,7 +463,7 @@ router.get('/user/:userId',
     const total = countResult[0].total;
 
     res.json({
-      success: true,
+      status: true,
       data: results,
       meta: {
         total: total,
@@ -547,7 +477,7 @@ router.get('/user/:userId',
   } catch (error) {
     console.error('❌ Error obteniendo reservas del usuario:', error);
     res.status(500).json({
-      success: false,
+      status: false,
       message: 'Error interno del servidor',
       error: error.message
     });
@@ -580,7 +510,7 @@ router.get('/:calendarId',
 
     if (results.length === 0) {
       return res.status(404).json({
-        success: false,
+        status: false,
         message: 'Reserva no encontrada'
       });
     }
@@ -591,13 +521,13 @@ router.get('/:calendarId',
     if (req.user.user_role !== 'admin' && 
         reservation.user_id !== req.user.user_id) {
       return res.status(403).json({
-        success: false,
+        status: false,
         message: 'No tienes permisos para ver esta reserva'
       });
     }
 
     res.json({
-      success: true,
+      status: true,
       data: reservation,
       message: 'Detalle de reserva obtenido correctamente'
     });
@@ -605,7 +535,7 @@ router.get('/:calendarId',
   } catch (error) {
     console.error('❌ Error obteniendo detalle de reserva:', error);
     res.status(500).json({
-      success: false,
+      status: false,
       message: 'Error interno del servidor',
       error: error.message
     });
@@ -634,7 +564,7 @@ router.put('/:calendarId/cancel',
 
     if (reservation.length === 0) {
       return res.status(404).json({
-        success: false,
+        status: false,
         message: 'Reserva no encontrada'
       });
     }
@@ -645,7 +575,7 @@ router.put('/:calendarId/cancel',
     if (req.user.user_role !== 'admin' && 
         reservationData.user_id !== req.user.user_id) {
       return res.status(403).json({
-        success: false,
+        status: false,
         message: 'No puedes cancelar reservas de otros usuarios'
       });
     }
@@ -653,7 +583,7 @@ router.put('/:calendarId/cancel',
     // Verificar si la reserva ya está cancelada o completada
     if (['Cancelada', 'Completada'].includes(reservationData.calendar_state)) {
       return res.status(400).json({
-        success: false,
+        status: false,
         message: `No se puede cancelar una reserva ${reservationData.calendar_state.toLowerCase()}`
       });
     }
@@ -676,19 +606,20 @@ router.put('/:calendarId/cancel',
     console.log(`✅ Reserva ${calendarId} cancelada por usuario ${req.user.user_id}`); // 🆕 SOLO LOG MEJORADO
 
     res.json({
-      success: true,
+      status: true,
       message: 'Reserva cancelada exitosamente'
     });
 
   } catch (error) {
     console.error('❌ Error cancelando reserva:', error);
     res.status(500).json({
-      success: false,
+      status: false,
       message: 'Error interno del servidor',
       error: error.message
     });
   }
 });
+
 // GET /calendars - Obtener todas las reservas (para admin)
 router.get('/', async (req, res) => {
     try {
@@ -746,7 +677,7 @@ router.get('/', async (req, res) => {
         console.log(`✅ Reservas encontradas para admin: ${results.length}`);
         
         res.json({
-            success: true,
+            status: true,
             data: results,
             meta: {
                 total: results.length,
@@ -759,7 +690,7 @@ router.get('/', async (req, res) => {
     } catch (error) {
         console.error('❌ Error obteniendo reservas para admin:', error);
         res.status(500).json({
-            success: false,
+            status: false,
             message: 'Error interno del servidor',
             error: error.message
         });
@@ -796,7 +727,7 @@ router.get('/pending', async (req, res) => {
         console.log(`✅ Reservas PENDIENTES encontradas: ${results.length}`);
         
         res.json({
-            success: true,
+            status: true,
             data: results,
             message: `${results.length} reservas pendientes de aprobación`
         });
@@ -804,12 +735,13 @@ router.get('/pending', async (req, res) => {
     } catch (error) {
         console.error('❌ Error obteniendo reservas pendientes:', error);
         res.status(500).json({
-            success: false,
+            status: false,
             message: 'Error interno del servidor',
             error: error.message
         });
     }
 });
+
 // PUT /calendars/:calendarId/approve - Aprobar reserva (ADMIN)
 router.put('/:calendarId/approve', async (req, res) => {
     try {
@@ -828,14 +760,14 @@ router.put('/:calendarId/approve', async (req, res) => {
         });
 
         res.json({
-            success: true,
+            status: true,
             message: 'Reserva aprobada exitosamente'
         });
 
     } catch (error) {
         console.error('❌ Error aprobando reserva:', error);
         res.status(500).json({
-            success: false,
+            status: false,
             message: 'Error interno del servidor',
             error: error.message
         });
@@ -861,17 +793,60 @@ router.put('/:calendarId/reject', async (req, res) => {
         });
 
         res.json({
-            success: true,
+            status: true,
             message: 'Reserva rechazada'
         });
 
     } catch (error) {
         console.error('❌ Error rechazando reserva:', error);
         res.status(500).json({
-            success: false,
+            status: false,
             message: 'Error interno del servidor',
             error: error.message
         });
     }
 });
+
+// 🔥 ENDPOINT DE DEBUG - AGREGAR TEMPORALMENTE
+router.get('/debug/:calendarId', async (req, res) => {
+    try {
+        const { calendarId } = req.params;
+        
+        const result = await Calendars.findByPk(calendarId);
+
+        res.json({
+            status: true,
+            data: result,
+            message: `Debug info for calendar ${calendarId}`
+        });
+    } catch (error) {
+        res.status(500).json({
+            status: false,
+            error: error.message
+        });
+    }
+});
+
+// 🔥 ENDPOINT PARA VERIFICAR ÚLTIMAS RESERVAS
+router.get('/recent', async (req, res) => {
+    try {
+        const results = await Calendars.findAll({
+            order: [['calendar_id', 'DESC']],
+            limit: 10,
+            attributes: ['calendar_id', 'field_id', 'user_id', 'calendar_date', 'calendar_state', 'calendar_transaccion']
+        });
+
+        res.json({
+            status: true,
+            data: results,
+            message: 'Últimas 10 reservas creadas'
+        });
+    } catch (error) {
+        res.status(500).json({
+            status: false,
+            error: error.message
+        });
+    }
+});
+
 module.exports = router;

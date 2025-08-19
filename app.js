@@ -55,7 +55,7 @@ app.use("/fields",fieldsRouter);
 var schedulesRouter = require("./routes/schedules.routes");
 app.use("/schedules",schedulesRouter);
 
-var calendarsRouter = require("./routes/calendars.routes");
+var calendarsRouter = require("./routes/calendar");
 app.use("/calendars",calendarsRouter);
 
 var cashClosingsRouter = require("./routes/cash_closings.routes");
@@ -73,12 +73,7 @@ try {
   console.log('ℹ️ payments.routes no encontrado, omitiendo...');
 }
 
-try {
-  var calendarRoutes = require("./routes/calendar");
-  app.use("/calendars", calendarRoutes);
-} catch (error) {
-  console.log('ℹ️ calendar routes no encontrado, omitiendo...');
-}
+
 
 try {
   var statisticsRoutes = require("./routes/statistics");
