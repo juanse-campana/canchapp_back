@@ -7,12 +7,21 @@ const isOwner = require("../middlewares/isOwner");
 
 /* GET lista de companies (pública) */
 router.get("/list", async function (request, response) {
-  const result = await companiesController.getList();
-  response.status(200).json({
+  try {
+    const result = await companiesController.getList();
+    response.status(200).json({
     data: result,
     status: true,
-    message: "TODO ESTA OK",
-  });
+    message: "Companias listadas exitosamente",
+    });
+  } catch (error) {
+    console.error("Error al listar las companias: ", error)
+    response.status(500).json({
+      status: true,
+      message: "Ocurrio un error al listar las companias"
+    })
+  }
+  
 });
 
 /* POST crear company - protegido, solo dueños pueden crear */
@@ -26,13 +35,14 @@ router.post("/create", verifyToken, isOwner, async function (request, response) 
     const result = await companiesController.postCreate(data);
     response.status(201).json({
       status: true,
+      message: "Compania creada exitosamente",
       info: result,
     });
   } catch (error) {
-    console.error("Error creando company:", error);
+    console.error("Error creando compania:", error);
     response.status(500).json({
       status: false,
-      message: "Error al crear company",
+      message: "Error al crear compania",
       error: error.message,
     });
   }
@@ -44,13 +54,14 @@ router.patch("/update", verifyToken, isOwner, async function (request, response)
     const result = await companiesController.patchUpdate(request.body);
     response.status(200).json({
       status: true,
+      message: "Compania actualizada exitosamente",
       info: result,
     });
   } catch (error) {
-    console.error("Error actualizando company:", error);
+    console.error("Error actualizando compania:", error);
     response.status(500).json({
       status: false,
-      message: "Error al actualizar company",
+      message: "Error al actualizar compania",
       error: error.message,
     });
   }

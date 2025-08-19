@@ -1,13 +1,24 @@
-const Cities = require("../models/cities");
+const modelCities = require("../models/cities.models");
 
-const getCities = async (req, res) => {
-  try {
-    const cities = await Cities.findAll();
-    res.json(cities);
-  } catch (error) {
-    console.error("Error al obtener ciudades:", error);
-    res.status(500).json({ error: "Error al obtener ciudades" });
-  }
+const getList = async () => {
+    const result = await modelCities.findAll();
+    return result;
+  };
+
+  const postCreate = async (data) => {
+    const result = await modelCities.create(data);
+    return result;
+  };
+  
+const patchUpdate = async (data) => {
+    const result = await modelCities.update(data, { where: {
+      city_id: data.city_id,
+    } });
+    return result;
 };
 
-module.exports = { getCities };
+module.exports = {
+    getList,
+    postCreate,
+    patchUpdate,
+}; 

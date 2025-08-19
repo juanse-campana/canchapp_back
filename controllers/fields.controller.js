@@ -40,6 +40,15 @@ const getById = async (fieldId) => {
     return result;
 };
 
+const findCompanyFields = async (id) => {
+    const result = await modelFields.findAll({
+        where: {
+            company_id: id
+        }
+    });
+    return result;
+};
+
 const postCreate = async (data) => {
     const transaction = await sequelize.transaction();
     
@@ -269,9 +278,10 @@ const deleteField = async (fieldId) => {
 module.exports = {
     getList,
     getById,
+    findCompanyFields,
     postCreate,
     getFieldSchedules,
     getAvailableSlots,
     patchUpdate,
-    deleteField,
+    deleteField
 };

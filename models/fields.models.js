@@ -1,8 +1,8 @@
 const { DataTypes} = require("sequelize");
 const sequelize = require("../database/connect");
 
-const Fields = sequelize.define(
-    "Fields",
+const Fieldss = sequelize.define(
+    "Fieldss",
     {
         field_id: {
             type: DataTypes.INTEGER,
@@ -55,7 +55,9 @@ const Fields = sequelize.define(
     },
     {
         timestamps: false,
+
         tableName: "fields"
+
     }
 );
-module.exports = Fields;
+module.exports = Fieldss;

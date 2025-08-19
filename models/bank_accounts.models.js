@@ -11,7 +11,7 @@ const Bank_accounts = sequelize.define(
             autoIncrement: true,
             unique: true,
         },
-        company_id: { // 🔧 CORREGIDO: cambiado de companie_id a company_id
+        company_id: {
             type: DataTypes.INTEGER,
             allowNull: true, // 🔧 Permitir null para cuentas de admin
             field: 'company_id' // 🔧 Mapear explícitamente al campo de la DB
@@ -30,7 +30,7 @@ const Bank_accounts = sequelize.define(
             allowNull: false,
         },
         b_account_type: {
-            type: DataTypes.ENUM('Ahorros', 'Corriente'), // 🔧 Cambiar a ENUM para consistencia
+            type: DataTypes.ENUM('Ahorros', 'Corriente'), // 🔧 ENUM para consistencia
             allowNull: false,
         },
         b_account_owner: {
@@ -42,7 +42,7 @@ const Bank_accounts = sequelize.define(
             allowNull: false,
             defaultValue: false,
         },
-        // 🆕 AGREGAR CAMPOS ADICIONALES DE LA DB
+        // 🆕 CAMPOS ADICIONALES DE LA DB
         account_type: {
             type: DataTypes.ENUM('admin_collection', 'company_collection', 'owner_payout'),
             allowNull: true,
