@@ -11,7 +11,7 @@ const RecurringReservations = sequelize.define(
         },
         parent_calendar_id: {
             type: DataTypes.INTEGER,
-            allowNull: false,
+            allowNull: true,
         },
         field_id: {
             type: DataTypes.INTEGER,
@@ -23,7 +23,7 @@ const RecurringReservations = sequelize.define(
         },
         user_id: {
             type: DataTypes.INTEGER,
-            allowNull: false,
+            allowNull: true, // CAMBIADO: Ahora permite NULL
             references: {
                 model: 'users',
                 key: 'user_id'
@@ -85,6 +85,12 @@ const RecurringReservations = sequelize.define(
         notes: {
             type: DataTypes.TEXT,
             allowNull: true,
+        },
+        // NUEVO CAMPO AGREGADO
+        client_name: {
+            type: DataTypes.STRING(100),
+            allowNull: true,
+            comment: 'Nombre del cliente para reservas creadas por el owner'
         },
     },
     {

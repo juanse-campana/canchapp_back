@@ -26,7 +26,7 @@ router.get("/list", async function (request, response) {
 router.post("/create", async function (request, response) {
   try {
     console.log(request.body);
-    const result = await fieldsController.getAvailableSlots(request.body);
+    const result = await fieldsController.postCreate(request.body);
     response.status(200).json({
       status: true,
       message: "Cancha creada exitosamente",

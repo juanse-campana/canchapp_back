@@ -87,7 +87,7 @@ const postCreate = async (data) => {
         // 3. Crear reservas recurrentes si se proporcionan
         if (data.recurring_reservations && Array.isArray(data.recurring_reservations)) {
             const recurringData = data.recurring_reservations.map(reservation => ({
-                parent_calendar_id: 0, // Se actualizará después
+                parent_calendar_id: null, // Se actualizará después
                 field_id: fieldId,
                 user_id: reservation.user_id,
                 created_by_owner_id: reservation.created_by_owner_id || null,
