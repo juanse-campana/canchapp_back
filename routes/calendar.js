@@ -407,7 +407,7 @@ router.post('/:calendarId/upload-receipt',
   }
 );
 
-// 🔒 GET /calendars/user/:userId - Reservas de un usuario específico (SOLO AUTENTICACIÓN AGREGADA)
+// 🔒 GET /calendars/user/:userId - Reservas de un usuario específico CON PRECIO CORREGIDO
 router.get('/user/:userId', 
   verifyToken,  // 🆕 SOLO ESTA LÍNEA AGREGADA
   requireOwnership('userId'), // 🆕 SOLO ESTA LÍNEA AGREGADA
@@ -416,8 +416,13 @@ router.get('/user/:userId',
     const { userId } = req.params;
     const { status, limit = 10, offset = 0 } = req.query;
 
+    // ✅ CONSULTA CORREGIDA - INCLUYE PRECIO
     let query = `
-      SELECT c.*, f.field_name, f.field_type, comp.company_name
+      SELECT c.*, 
+             f.field_name, 
+             f.field_type, 
+             f.field_hour_price,
+             comp.company_name
       FROM Calendars c
       JOIN Fields f ON c.field_id = f.field_id
       JOIN Companies comp ON f.company_id = comp.company_id

@@ -1,4 +1,4 @@
-// routes/statistics.js - VERSIÓN CORREGIDA Y COMPLETA
+// routes/statistics.js - VERSIÓN CORREGIDA Y COMPATIBLE
 const express = require('express');
 const router = express.Router();
 const sequelize = require('../database/connect');
@@ -9,8 +9,8 @@ router.get('/company/:companyId/dashboard', async (req, res) => {
         const { companyId } = req.params;
         console.log(`📊 Obteniendo estadísticas para empresa ${companyId}`);
 
-        // 1. Canchas reservadas HOY
-        const todayQuery = `
+        // 1. CORREGIDO: Canchas reservadas HOY (no reservas totales)
+        const fieldsReservedQuery = `
             SELECT COUNT(DISTINCT c.field_id) as fields_reserved_today
             FROM Calendars c
             JOIN Fields f ON c.field_id = f.field_id
@@ -19,8 +19,8 @@ router.get('/company/:companyId/dashboard', async (req, res) => {
             AND c.calendar_state IN ('Reservada', 'Confirmada', 'Por Confirmar')
         `;
 
-        // 2. Ingresos del DÍA actual (SOLO reservas confirmadas/completadas)
-        const incomeQuery = `
+        // 2. CORREGIDO: Ingresos del DÍA actual (no del mes)
+        const dailyIncomeQuery = `
             SELECT COALESCE(SUM(f.field_hour_price), 0) as daily_income
             FROM Calendars c
             JOIN Fields f ON c.field_id = f.field_id
@@ -29,7 +29,7 @@ router.get('/company/:companyId/dashboard', async (req, res) => {
             AND c.calendar_state IN ('Completada', 'Confirmada')
         `;
 
-        // 3. Canchas activas
+        // 3. Canchas activas (sin cambios)
         const fieldsQuery = `
             SELECT COUNT(*) as active_fields
             FROM Fields f
@@ -37,7 +37,7 @@ router.get('/company/:companyId/dashboard', async (req, res) => {
             AND (f.field_delete = FALSE OR f.field_delete IS NULL)
         `;
 
-        // 4. CAMBIADO: Total de clientes únicos (en lugar de nuevos)
+        // 4. Total de clientes únicos (sin cambios)
         const totalClientsQuery = `
             SELECT COUNT(DISTINCT c.user_id) as total_clients
             FROM Calendars c
@@ -47,7 +47,7 @@ router.get('/company/:companyId/dashboard', async (req, res) => {
             AND c.user_id IS NOT NULL
         `;
 
-        // 5. Reservas totales del mes
+        // 5. Reservas totales del mes (para estadísticas adicionales)
         const monthlyReservationsQuery = `
             SELECT 
                 COUNT(*) as total_reservations,
@@ -61,12 +61,12 @@ router.get('/company/:companyId/dashboard', async (req, res) => {
         `;
 
         // Ejecutar todas las consultas
-        const [todayResults] = await sequelize.query(todayQuery, {
+        const [fieldsReservedResults] = await sequelize.query(fieldsReservedQuery, {
             replacements: [companyId],
             type: sequelize.QueryTypes.SELECT
         });
 
-        const [incomeResults] = await sequelize.query(incomeQuery, {
+        const [dailyIncomeResults] = await sequelize.query(dailyIncomeQuery, {
             replacements: [companyId],
             type: sequelize.QueryTypes.SELECT
         });
@@ -86,12 +86,12 @@ router.get('/company/:companyId/dashboard', async (req, res) => {
             type: sequelize.QueryTypes.SELECT
         });
 
-        // Estructura de respuesta que coincida con el frontend
+        // CORREGIDO: Estructura de respuesta que coincida EXACTAMENTE con el frontend
         const dashboardData = {
-            todayBookings: parseInt(todayResults.today_bookings) || 0,
-            monthlyIncome: parseFloat(incomeResults.monthly_income) || 0.0,
+            fieldsReservedToday: parseInt(fieldsReservedResults.fields_reserved_today) || 0,
+            dailyIncome: parseFloat(dailyIncomeResults.daily_income) || 0.0,
             activeFields: parseInt(fieldsResults.active_fields) || 0,
-            totalClients: parseInt(clientsResults.total_clients) || 0, // CAMBIADO de newClients a totalClients
+            totalClients: parseInt(clientsResults.total_clients) || 0,
             totalReservations: parseInt(reservationsResults.total_reservations) || 0,
             completedReservations: parseInt(reservationsResults.completed_reservations) || 0,
             cancelledReservations: parseInt(reservationsResults.cancelled_reservations) || 0
@@ -101,7 +101,7 @@ router.get('/company/:companyId/dashboard', async (req, res) => {
 
         res.json({
             success: true,
-            ...dashboardData, // Enviar los datos directamente en el root para compatibilidad
+            ...dashboardData, // Enviar los datos directamente en el root
             message: 'Estadísticas del dashboard obtenidas correctamente'
         });
 
@@ -133,7 +133,7 @@ router.get('/company/:companyId/weekly-stats', async (req, res) => {
             AND c.calendar_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
             AND c.calendar_state IN ('Completada', 'Confirmada', 'Reservada')
             GROUP BY DATE(c.calendar_date), DAYNAME(c.calendar_date), DAYOFWEEK(c.calendar_date)
-            ORDER BY c.calendar_date DESC
+            ORDER BY c.calendar_date ASC
         `;
 
         const results = await sequelize.query(weeklyQuery, {
@@ -165,6 +165,78 @@ router.get('/company/:companyId/weekly-stats', async (req, res) => {
     }
 });
 
+// GET /statistics/company/:companyId/income - Ingresos por período específico
+router.get('/company/:companyId/income', async (req, res) => {
+    try {
+        const { companyId } = req.params;
+        const { period = 'day' } = req.query; // CAMBIO: day por defecto
+
+        let dateCondition = '';
+        let periodLabel = '';
+
+        switch (period) {
+            case 'day':
+                dateCondition = 'AND c.calendar_date = CURDATE()';
+                periodLabel = 'Ingresos de Hoy';
+                break;
+            case 'week':
+                dateCondition = 'AND c.calendar_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)';
+                periodLabel = 'Ingresos de la Semana';
+                break;
+            case 'month':
+                dateCondition = 'AND MONTH(c.calendar_date) = MONTH(CURDATE()) AND YEAR(c.calendar_date) = YEAR(CURDATE())';
+                periodLabel = 'Ingresos del Mes';
+                break;
+            case 'year':
+                dateCondition = 'AND YEAR(c.calendar_date) = YEAR(CURDATE())';
+                periodLabel = 'Ingresos del Año';
+                break;
+            default:
+                dateCondition = 'AND c.calendar_date = CURDATE()';
+                periodLabel = 'Ingresos de Hoy';
+        }
+
+        const incomeQuery = `
+            SELECT 
+                COALESCE(SUM(f.field_hour_price), 0) as total_income,
+                COUNT(*) as confirmed_reservations,
+                COUNT(DISTINCT c.user_id) as unique_clients,
+                AVG(f.field_hour_price) as avg_price_per_reservation
+            FROM Calendars c
+            JOIN Fields f ON c.field_id = f.field_id
+            WHERE f.company_id = ?
+            ${dateCondition}
+            AND c.calendar_state IN ('Completada', 'Confirmada')
+        `;
+
+        const [results] = await sequelize.query(incomeQuery, {
+            replacements: [companyId],
+            type: sequelize.QueryTypes.SELECT
+        });
+
+        res.json({
+            success: true,
+            data: {
+                totalIncome: parseFloat(results.total_income) || 0,
+                confirmedReservations: parseInt(results.confirmed_reservations) || 0,
+                uniqueClients: parseInt(results.unique_clients) || 0,
+                avgPricePerReservation: parseFloat(results.avg_price_per_reservation) || 0,
+                period: period,
+                periodLabel: periodLabel
+            },
+            message: `${periodLabel} obtenidos correctamente`
+        });
+
+    } catch (error) {
+        console.error('Error obteniendo ingresos por período:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error interno del servidor',
+            error: error.message
+        });
+    }
+});
+
 // GET /statistics/company/:companyId/fields-performance - Rendimiento por cancha
 router.get('/company/:companyId/fields-performance', async (req, res) => {
     try {
@@ -182,6 +254,8 @@ router.get('/company/:companyId/fields-performance', async (req, res) => {
             case 'year':
                 dateCondition = 'AND c.calendar_date >= DATE_SUB(CURDATE(), INTERVAL 365 DAY)';
                 break;
+            default:
+                dateCondition = 'AND c.calendar_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)';
         }
 
         const query = `
@@ -227,78 +301,6 @@ router.get('/company/:companyId/fields-performance', async (req, res) => {
 
     } catch (error) {
         console.error('❌ Error obteniendo rendimiento por cancha:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error interno del servidor',
-            error: error.message
-        });
-    }
-});
-
-// GET /statistics/company/:companyId/income - Ingresos por período específico
-router.get('/company/:companyId/income', async (req, res) => {
-    try {
-        const { companyId } = req.params;
-        const { period = 'month' } = req.query; // day, week, month, year
-
-        let dateCondition = '';
-        let periodLabel = '';
-
-        switch (period) {
-            case 'day':
-                dateCondition = 'AND c.calendar_date = CURDATE()';
-                periodLabel = 'Ingresos de Hoy';
-                break;
-            case 'week':
-                dateCondition = 'AND c.calendar_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)';
-                periodLabel = 'Ingresos de la Semana';
-                break;
-            case 'month':
-                dateCondition = 'AND MONTH(c.calendar_date) = MONTH(CURDATE()) AND YEAR(c.calendar_date) = YEAR(CURDATE())';
-                periodLabel = 'Ingresos del Mes';
-                break;
-            case 'year':
-                dateCondition = 'AND YEAR(c.calendar_date) = YEAR(CURDATE())';
-                periodLabel = 'Ingresos del Año';
-                break;
-            default:
-                dateCondition = 'AND MONTH(c.calendar_date) = MONTH(CURDATE()) AND YEAR(c.calendar_date) = YEAR(CURDATE())';
-                periodLabel = 'Ingresos del Mes';
-        }
-
-        const incomeQuery = `
-            SELECT 
-                COALESCE(SUM(f.field_hour_price), 0) as total_income,
-                COUNT(*) as confirmed_reservations,
-                COUNT(DISTINCT c.user_id) as unique_clients,
-                AVG(f.field_hour_price) as avg_price_per_reservation
-            FROM Calendars c
-            JOIN Fields f ON c.field_id = f.field_id
-            WHERE f.company_id = ?
-            ${dateCondition}
-            AND c.calendar_state IN ('Completada', 'Confirmada')
-        `;
-
-        const [results] = await sequelize.query(incomeQuery, {
-            replacements: [companyId],
-            type: sequelize.QueryTypes.SELECT
-        });
-
-        res.json({
-            success: true,
-            data: {
-                totalIncome: parseFloat(results.total_income) || 0,
-                confirmedReservations: parseInt(results.confirmed_reservations) || 0,
-                uniqueClients: parseInt(results.unique_clients) || 0,
-                avgPricePerReservation: parseFloat(results.avg_price_per_reservation) || 0,
-                period: period,
-                periodLabel: periodLabel
-            },
-            message: `${periodLabel} obtenidos correctamente`
-        });
-
-    } catch (error) {
-        console.error('Error obteniendo ingresos por período:', error);
         res.status(500).json({
             success: false,
             message: 'Error interno del servidor',
