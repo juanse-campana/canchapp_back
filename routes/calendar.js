@@ -79,7 +79,7 @@ router.get('/company/:companyId/upcoming', async (req, res) => {
         const { limit = 5 } = req.query;
 
         const query = `
-            SELECT c.*, f.field_name, u.user_name, u.user_email
+            SELECT c.*, f.field_name, u.user_name, u.user_email, CONCAT(c.calendar_init_time, ' - ', c.calendar_end_time) as time_range
             FROM Calendars c
             JOIN Fields f ON c.field_id = f.field_id
             JOIN Users u ON c.user_id = u.user_id
@@ -164,6 +164,7 @@ router.get('/company/:companyId', async (req, res) => {
 });
 
 // 🔥 POST /calendars/create - VERSIÓN CORREGIDA COMPLETA
+// 🔥 POST /calendars/create - VERSIÓN CORREGIDA (usa hash único)
 router.post('/create',
   uploadConfigs.receipt.single('receipt_image'),
   handleUploadError,
@@ -181,35 +182,45 @@ router.post('/create',
             calendar_date,
             calendar_init_time,
             calendar_end_time,
-            calendar_transaccion
+            calendar_transaccion: paymentAmountStr // Este es el monto
         } = req.body;
 
-        // Validación mejorada
+        // Validación de campos obligatorios
         if (!field_id || !user_id || !calendar_date || !calendar_init_time || !calendar_end_time) {
             return res.status(400).json({
-                status: false, // 🔥 Cambiado a 'status' para consistencia
+                status: false,
                 message: 'Faltan campos obligatorios: field_id, user_id, calendar_date, calendar_init_time, calendar_end_time'
             });
         }
 
-        // Iniciar transacción DESPUÉS de validaciones
+        // ✅ Convertir monto a número
+        const paymentAmount = parseFloat(paymentAmountStr);
+        if (isNaN(paymentAmount)) {
+            return res.status(400).json({
+                status: false,
+                message: 'El monto del pago no es válido'
+            });
+        }
+
+        // Iniciar transacción
         transaction = await sequelize.transaction();
 
-        // 🔥 Procesar imagen
+        // 🔥 Generar un hash único para la transacción
+        const transactionHash = `TX-${Date.now()}-${user_id}-${field_id}-${Math.floor(Math.random() * 10000)}`;
+
+        // Procesar comprobante
         let receiptUrl = null;
         if (req.file) {
             receiptUrl = `/uploads/receipts/${req.file.filename}`;
             console.log('📷 Comprobante guardado:', receiptUrl);
         }
 
-        // 🔥 VERIFICACIÓN DE SOLAPAMIENTO USANDO EL MODELO
+        // Verificar solapamiento
         const overlappingReservation = await Calendars.findOne({
             where: {
                 field_id,
                 calendar_date,
-                calendar_state: { 
-                    [Op.notIn]: ['Cancelada', 'Disponible'] 
-                },
+                calendar_state: { [Op.notIn]: ['Cancelada', 'Disponible'] },
                 [Op.or]: [
                     {
                         calendar_init_time: { [Op.lt]: calendar_end_time },
@@ -228,7 +239,7 @@ router.post('/create',
             });
         }
 
-        // 🔥 INSERCIÓN USANDO EL MODELO SEQUELIZE
+        // ✅ Crear reserva con hash único y monto separado
         const newReservation = await Calendars.create({
             field_id: parseInt(field_id),
             user_id: parseInt(user_id),
@@ -236,37 +247,34 @@ router.post('/create',
             calendar_init_time,
             calendar_end_time,
             calendar_state: receiptUrl ? 'Pendiente' : 'Confirmada',
-            calendar_transaccion: parseFloat(calendar_transaccion) || null,
+            calendar_transaccion: transactionHash, // ✅ Hash único
+            calendar_payment_amount: paymentAmount, // ✅ Monto real
             calendar_payment_receipt: receiptUrl,
             calendar_payment_status: receiptUrl ? 'pendiente' : null,
-            calendar_payment_amount: parseFloat(calendar_transaccion) || null,
             calendar_payment_receipt_date: receiptUrl ? new Date() : null
         }, { transaction });
 
-        // ✅ COMMIT LA TRANSACCIÓN
         await transaction.commit();
 
         console.log('✅ Reserva creada con ID:', newReservation.calendar_id);
+        console.log('✅ Hash de transacción:', transactionHash);
 
         res.status(201).json({
-            status: true, // 🔥 Cambiado a 'status'
-            message: 'Calendario creado exitosamente',
-            info: [{ // 🔥 Cambiado a 'info' para consistencia con tu log
+            status: true,
+            message: 'Reserva creada exitosamente',
+            info: [{
                 calendar_id: newReservation.calendar_id,
+                transaction_hash: transactionHash,
+                amount: paymentAmount,
                 receipt_url: receiptUrl,
                 state: receiptUrl ? 'Pendiente' : 'Confirmada'
             }]
         });
 
     } catch (error) {
-        // 🔥 Rollback solo si la transacción existe
-        if (transaction) {
-            await transaction.rollback();
-        }
+        if (transaction) await transaction.rollback();
         
         console.error('❌ Error crítico creando reserva:', error);
-        console.error('❌ Stack trace:', error.stack);
-        
         res.status(500).json({
             status: false,
             message: 'Error en el servidor al crear la reserva',
@@ -280,7 +288,7 @@ router.put('/update-status', async (req, res) => {
     try {
         const { calendar_id, calendar_state } = req.body;
 
-        const validStates = ['Disponible', 'Reservada', 'Confirmada', 'Cancelada', 'Completada', 'Bloqueada', 'NoDisponible'];
+        const validStates = ['Disponible', 'Reservada', 'No Disponible', 'Por Confirmar', 'Confirmada', 'Completada', 'Cancelada', 'Pendiente', 'Aprobada', 'Rechazada'];
         
         if (!validStates.includes(calendar_state)) {
             return res.status(400).json({

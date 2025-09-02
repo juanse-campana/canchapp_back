@@ -123,17 +123,24 @@ router.get('/company/:companyId/weekly-stats', async (req, res) => {
 
         const weeklyQuery = `
             SELECT 
-                DAYNAME(c.calendar_date) as day_name,
-                DAYOFWEEK(c.calendar_date) as day_number,
+                CASE DAYOFWEEK(c.calendar_date)
+                    WHEN 1 THEN 'Dom'
+                    WHEN 2 THEN 'Lun'
+                    WHEN 3 THEN 'Mar'
+                    WHEN 4 THEN 'Mié'
+                    WHEN 5 THEN 'Jue'
+                    WHEN 6 THEN 'Vie'
+                    WHEN 7 THEN 'Sáb'
+                END as day_name,
                 COUNT(*) as reservations_count,
-                SUM(f.field_hour_price) as daily_income
+                COALESCE(SUM(f.field_hour_price), 0) as daily_income
             FROM Calendars c
             JOIN Fields f ON c.field_id = f.field_id
             WHERE f.company_id = ?
             AND c.calendar_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
             AND c.calendar_state IN ('Completada', 'Confirmada', 'Reservada')
-            GROUP BY DATE(c.calendar_date), DAYNAME(c.calendar_date), DAYOFWEEK(c.calendar_date)
-            ORDER BY c.calendar_date ASC
+            GROUP BY DAYOFWEEK(c.calendar_date)
+            ORDER BY DAYOFWEEK(c.calendar_date) ASC
         `;
 
         const results = await sequelize.query(weeklyQuery, {
