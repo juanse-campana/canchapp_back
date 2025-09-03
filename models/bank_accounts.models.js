@@ -69,7 +69,7 @@ const Bank_accounts = sequelize.define(
     },
     {
         timestamps: false,
-        tableName: "Bank_accounts"
+        tableName: "bank_accounts"
     }
 );
 

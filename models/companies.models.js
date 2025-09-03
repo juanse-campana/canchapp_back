@@ -61,7 +61,7 @@ const Companies = sequelize.define(
   },
   {
     timestamps: false,
-    tableName: "Companies",
+    tableName: "companies",
   }
 );
 

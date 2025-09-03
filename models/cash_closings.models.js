@@ -36,7 +36,7 @@ const CashClosings = sequelize.define(
   },
   {
     timestamps: false,
-    tableName: "Cash_closings",
+    tableName: "cash_closings",
   }
 );
 
