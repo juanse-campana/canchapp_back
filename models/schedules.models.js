@@ -45,7 +45,7 @@ const Schedules = sequelize.define(
     },
     {
         timestamps: false,
-        tableName: "Schedules"
+        tableName: "schedules"
     }
 );
 module.exports = Schedules;

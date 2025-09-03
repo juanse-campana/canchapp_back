@@ -100,7 +100,7 @@ const Calendars = sequelize.define('Calendars', {
         allowNull: true
     }
 }, {
-    tableName: 'Calendars',
+    tableName: 'calendars',
     timestamps: false
 });
 
